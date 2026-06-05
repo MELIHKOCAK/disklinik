@@ -9,38 +9,148 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RandevuRouteImport } from './routes/randevu'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminRandevularRouteImport } from './routes/_authenticated/admin/randevular'
+import { Route as AuthenticatedAdminMesajlarRouteImport } from './routes/_authenticated/admin/mesajlar'
+import { Route as AuthenticatedAdminHizmetlerRouteImport } from './routes/_authenticated/admin/hizmetler'
 
+const RandevuRoute = RandevuRouteImport.update({
+  id: '/randevu',
+  path: '/randevu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminRandevularRoute =
+  AuthenticatedAdminRandevularRouteImport.update({
+    id: '/admin/randevular',
+    path: '/admin/randevular',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminMesajlarRoute =
+  AuthenticatedAdminMesajlarRouteImport.update({
+    id: '/admin/mesajlar',
+    path: '/admin/mesajlar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminHizmetlerRoute =
+  AuthenticatedAdminHizmetlerRouteImport.update({
+    id: '/admin/hizmetler',
+    path: '/admin/hizmetler',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/randevu': typeof RandevuRoute
+  '/admin/hizmetler': typeof AuthenticatedAdminHizmetlerRoute
+  '/admin/mesajlar': typeof AuthenticatedAdminMesajlarRoute
+  '/admin/randevular': typeof AuthenticatedAdminRandevularRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/randevu': typeof RandevuRoute
+  '/admin/hizmetler': typeof AuthenticatedAdminHizmetlerRoute
+  '/admin/mesajlar': typeof AuthenticatedAdminMesajlarRoute
+  '/admin/randevular': typeof AuthenticatedAdminRandevularRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/randevu': typeof RandevuRoute
+  '/_authenticated/admin/hizmetler': typeof AuthenticatedAdminHizmetlerRoute
+  '/_authenticated/admin/mesajlar': typeof AuthenticatedAdminMesajlarRoute
+  '/_authenticated/admin/randevular': typeof AuthenticatedAdminRandevularRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/randevu'
+    | '/admin/hizmetler'
+    | '/admin/mesajlar'
+    | '/admin/randevular'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/randevu'
+    | '/admin/hizmetler'
+    | '/admin/mesajlar'
+    | '/admin/randevular'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/randevu'
+    | '/_authenticated/admin/hizmetler'
+    | '/_authenticated/admin/mesajlar'
+    | '/_authenticated/admin/randevular'
+    | '/_authenticated/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  RandevuRoute: typeof RandevuRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/randevu': {
+      id: '/randevu'
+      path: '/randevu'
+      fullPath: '/randevu'
+      preLoaderRoute: typeof RandevuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,12 +158,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/randevular': {
+      id: '/_authenticated/admin/randevular'
+      path: '/admin/randevular'
+      fullPath: '/admin/randevular'
+      preLoaderRoute: typeof AuthenticatedAdminRandevularRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/mesajlar': {
+      id: '/_authenticated/admin/mesajlar'
+      path: '/admin/mesajlar'
+      fullPath: '/admin/mesajlar'
+      preLoaderRoute: typeof AuthenticatedAdminMesajlarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/hizmetler': {
+      id: '/_authenticated/admin/hizmetler'
+      path: '/admin/hizmetler'
+      fullPath: '/admin/hizmetler'
+      preLoaderRoute: typeof AuthenticatedAdminHizmetlerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminHizmetlerRoute: typeof AuthenticatedAdminHizmetlerRoute
+  AuthenticatedAdminMesajlarRoute: typeof AuthenticatedAdminMesajlarRoute
+  AuthenticatedAdminRandevularRoute: typeof AuthenticatedAdminRandevularRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminHizmetlerRoute: AuthenticatedAdminHizmetlerRoute,
+  AuthenticatedAdminMesajlarRoute: AuthenticatedAdminMesajlarRoute,
+  AuthenticatedAdminRandevularRoute: AuthenticatedAdminRandevularRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  RandevuRoute: RandevuRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
