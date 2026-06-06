@@ -1,124 +1,31 @@
+## Yapılacaklar
 
-# Diş Kliniği Web Sitesi + Admin Paneli
+### 1. Yeni admin ekleme
+- `admin_users` tablosuna `xx24melih24xx@gmail.com` hesabının `user_id`'sini ekle (insert tool ile, `auth.users`'tan e-posta üzerinden lookup).
+- Bu kullanıcının önceden `/auth` üzerinden kayıt olmuş olması gerekir; kayıt yoksa kullanıcıya kaydolmasını söyleyeceğim, sonra ekleyeceğim.
 
-Sade modern, mavi/beyaz paletli, Türkçe bir diş kliniği sitesi. Public tanıtım sayfaları + Supabase Auth korumalı admin paneli.
+### 2. Instagram bölümünü düzelt
+Mevcut durum: `InstagramFeed.tsx` içine gömülü token geçersiz → Graph API 400 → bölüm hiç render edilmiyor (`error` true ise `return null`).
 
-## 1. Backend (Lovable Cloud / Supabase)
+Yapılacak:
+- **Token'ı güvenli sakla**: `INSTAGRAM_ACCESS_TOKEN` adıyla runtime secret olarak ekle (`add_secret` ile kullanıcıdan yeni token alınacak). Token bir daha kodda tutulmayacak.
+- **Sunucu tarafına taşı**: Yeni `src/lib/instagram.functions.ts` içinde `getInstagramPosts` adlı `createServerFn` oluştur. Bu fonksiyon `process.env.INSTAGRAM_ACCESS_TOKEN` ile `https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink&limit=8` çağrısı yapacak. Hata/timeout durumunda `{ items: [], error: "..." }` döner — exception fırlatmaz, böylece site render'ı bozulmaz.
+- **InstagramFeed.tsx'i güncelle**:
+  - Sabit token değişkenini ve direkt `fetch` çağrısını kaldır.
+  - TanStack Query (`useQuery` + `useServerFn`) ile server function'ı çağır.
+  - Yükleniyor: mevcut skeleton grid göster.
+  - Hata: console'a yazdır, zarif fallback (başlık + "Gönderiler şu an yüklenemiyor" mesajı) — bölümü tamamen gizlemek yerine kullanıcı talebine göre **her zaman göster**.
+  - Boş veri: aynı fallback mesajı.
+  - Başarı: mevcut 1/2/4 kolon grid, hover overlay korunur.
+- **Konumu**: Şu an `index.tsx`'de `About` → `InstagramFeed` → `Contact` sırası var; kullanıcı "iletişim üzerinde" görünmediğinden bahsediyor — sıralama değişmeyecek, sadece artık her zaman görünecek.
 
-Lovable Cloud etkinleştirilir. Migration ile şu yapı kurulur:
+### Teknik notlar
+- Server function `requireSupabaseAuth` kullanmaz (public endpoint).
+- Token Instagram Basic Display / Graph API long-lived token olmalı (60 gün geçerli). Yenileme şimdilik manuel.
+- Mevcut `routes/index.tsx`, `routes/__root.tsx` ve route tree değişmiyor.
 
-**Tablolar**
-- `admin_users` (user_id PK → auth.users, created_at)
-- `services` (id, title, description, image_url, created_at, updated_at)
-- `appointments` (id, full_name, email, phone, appointment_date, status `beklemede|onaylandı|iptal_edildi`, created_at)
-- `contact_messages` (id, full_name, email, message, status `okunmadı|okundu|arsivlendi`, created_at)
-
-**Güvenlik**
-- `has_admin(uid)` security definer fonksiyonu (`admin_users` lookup).
-- RLS:
-  - `services`: anon+authenticated SELECT, admin ALL.
-  - `appointments`: anon INSERT, admin SELECT/UPDATE.
-  - `contact_messages`: anon INSERT, admin SELECT/UPDATE.
-  - `admin_users`: sadece admin SELECT.
-- GRANT'lar her tablo için açıkça verilir.
-
-**Storage**
-- `public-assets` bucket (public). Admin upload/delete policy'leri.
-
-**Admin seed**: Kullanıcı /login üzerinden hesap açtıktan sonra `admin_users` tablosuna user_id elle (insert tool ile) eklenir. Açık signup yok.
-
-## 2. Routing (TanStack Start)
-
-Public (SSR):
-- `/` – Landing (Hero, Hizmetler önizleme, Hakkında, İletişim formu)
-- `/randevu` – Tam randevu formu
-- `/login` – Admin girişi (email/password)
-
-Korumalı (`_authenticated/` layout, ssr:false):
-- `/_authenticated/admin` – Dashboard özet
-- `/_authenticated/admin/randevular`
-- `/_authenticated/admin/mesajlar`
-- `/_authenticated/admin/hizmetler`
-
-`_authenticated/route.tsx` gate: oturum yoksa `/login`'e redirect; oturum varsa `has_admin` server fn ile doğrulama, admin değilse logout + redirect.
-
-## 3. Public Site
-
-**Navbar** – Sticky, sol logo, sağ menü (Anasayfa, Hizmetler, Hakkında, İletişim) + "Randevu Al" CTA → `/randevu`. Hash anchorlar landing içi scroll için.
-
-**Hero** – Sola yaslı H1 (Poppins, bold), alt açıklama (Inter), iki CTA (Randevu Al / Hizmetlerimiz). Arkada hafif gradient + blur glassmorphism.
-
-**Hizmetler** – `services` tablosundan TanStack Query ile çekilir, masaüstü 3 kolon / mobil 1 kolon kart grid; ikon + başlık + açıklama + opsiyonel görsel.
-
-**Hakkında** – Asimetrik split: sol metin (klinik hikayesi, değerler), sağ klinik fotoğrafı (generate edilecek).
-
-**İletişim** – İki sütun: sol form (ad, e-posta, mesaj — zod validation), sağ adres/telefon/harita placeholder. Submit → `contact_messages` insert + toast.
-
-**Footer** – 3 sütun (iletişim, hızlı linkler, sosyal). Koyu mavi arka plan.
-
-**/randevu sayfası** – Tam form: ad, telefon (zorunlu), e-posta, hizmet seçimi (services'tan), tarih (shadcn DatePicker) + saat. Zod ile validate, `appointments` insert, başarı ekranı.
-
-## 4. Admin Panel
-
-**Layout** – `Sidebar` (shadcn sidebar, collapsible icon) + Top Header (avatar, çıkış).
-- Sidebar: Dashboard, Randevular, Mesajlar, Hizmetler.
-- Header: oturum sahibi e-postası + Çıkış Yap (signOut + cache clear + replace `/login`).
-
-**Dashboard** – İstatistik kartları: Bugünkü randevular, Bekleyen randevular, Okunmamış mesajlar, Toplam hizmet. TanStack Query, staleTime 60s.
-
-**Randevular** – shadcn Data Table: arama (ad/telefon), durum filtresi, tarih sıralama, sayfalama. Satır aksiyonu: durumu Onayla/İptal/Beklemede (optimistic update).
-
-**Mesajlar** – Master-detail: sol liste (okunmamış vurgulu), sağ detay paneli. Aksiyonlar: Okundu işaretle, Arşivle.
-
-**Hizmetler** – CRUD: liste tablosu + "Yeni Hizmet" dialog. Form (shadcn Form + zod): başlık, açıklama, görsel upload (Supabase Storage `public-assets`). Düzenle/Sil aksiyonları.
-
-## 5. Tasarım Sistemi
-
-`src/styles.css` içinde oklch tokenları:
-- Primary: dental blue (~oklch(0.55 0.15 240))
-- Accent: lighter cyan
-- Background: white / very light blue-grey
-- Foreground: deep navy
-- Dark mode tanımlı ama default light
-- Fontlar: Poppins (başlık), Inter (gövde) — Google Fonts link
-- 8px spacing grid, geniş whitespace
-- Border radius: yumuşak (0.75rem)
-
-Tüm renkler semantic token üzerinden; component'larda hardcoded renk yok.
-
-## 6. Veri Erişimi
-
-- Public okumalar (services) → loader + `useSuspenseQuery` (ssr ok, RLS anon select).
-- Public yazmalar (appointments/contact_messages insert) → browser supabase client + RLS anon insert.
-- Admin operasyonları → `createServerFn` + `requireSupabaseAuth` + `has_admin` kontrolü, sonra context.supabase ile sorgu.
-- Storage upload → admin paneli içinde browser client.
-- `attachSupabaseAuth` middleware'inin `src/start.ts`'de kayıtlı olduğu doğrulanır.
-- Root'ta tek `onAuthStateChange` listener (SIGNED_IN/OUT/USER_UPDATED).
-
-## 7. Görseller
-
-generate_image ile üretilecek:
-- Hero arka plan / yan görsel (modern klinik ambians)
-- Hakkında bölümü klinik iç mekan fotoğrafı
-- 4-6 hizmet için ikon yerine görsel placeholder (opsiyonel; ikonlar Lucide ile başlangıçta)
-
-## Teknik Notlar
-
-- TanStack Start v1, Vite, React 19, Tailwind v4 (`@theme` + `oklch`).
-- TanStack Query default read shape (ensureQueryData + useSuspenseQuery).
-- Form validation: zod + react-hook-form.
-- Toast: shadcn sonner.
-- `_authenticated/route.tsx` Lovable Cloud entegrasyonunca yönetilen şablonla uyumlu (`ssr:false`).
-- Admin doğrulaması için ek server fn `requireAdmin` middleware (auth + has_admin RPC).
-- routeTree.gen.ts manuel düzenlenmez.
-
-## Implementasyon Sırası
-
-1. Lovable Cloud aktifle, migration (tablolar + RLS + grants + storage bucket + has_admin).
-2. Design tokens + fontlar.
-3. Public layout, Navbar, Footer, Hero, Hizmetler, Hakkında, İletişim landing.
-4. `/randevu` sayfası.
-5. `/login` + admin gate route.
-6. Admin sidebar layout + Dashboard.
-7. Randevular, Mesajlar, Hizmetler modülleri (server fn'ler dahil).
-8. Görsel generasyonu ve son rötuşlar.
+### Dosya değişiklikleri
+- yeni: `src/lib/instagram.functions.ts`
+- güncellenecek: `src/components/site/InstagramFeed.tsx`
+- secret eklenecek: `INSTAGRAM_ACCESS_TOKEN`
+- veritabanı insert: `admin_users` (yeni e-posta)
