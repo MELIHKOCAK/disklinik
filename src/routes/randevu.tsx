@@ -188,6 +188,7 @@ function RandevuPage() {
         </div>
       </main>
       <Footer />
+      <WhatsAppButton />
     </div>
   );
 }
