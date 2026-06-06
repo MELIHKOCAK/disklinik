@@ -6,6 +6,9 @@ import { Hero } from "@/components/site/Hero";
 import { Services, servicesQuery } from "@/components/site/Services";
 import { About } from "@/components/site/About";
 import { Contact } from "@/components/site/Contact";
+import { InstagramFeed } from "@/components/site/InstagramFeed";
+import { MapSection } from "@/components/site/MapSection";
+import { WhatsAppButton } from "@/components/site/WhatsAppButton";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,9 +38,13 @@ function HomePage() {
           <Services />
         </Suspense>
         <About />
+        <InstagramFeed />
         <Contact />
+        <MapSection />
       </main>
       <Footer />
+      <WhatsAppButton />
     </div>
   );
 }
+

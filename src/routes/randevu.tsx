@@ -20,6 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { servicesQuery } from "@/components/site/Services";
 import { toast } from "sonner";
+import { createAppointmentCalendarEvent } from "@/lib/calendar.functions";
+import { WhatsAppButton } from "@/components/site/WhatsAppButton";
 
 export const Route = createFileRoute("/randevu")({
   head: () => ({
@@ -61,20 +63,37 @@ function RandevuPage() {
     const [h, m] = v.time.split(":").map(Number);
     const dt = new Date(v.appointment_date);
     dt.setHours(h, m, 0, 0);
-    const { error } = await supabase.from("appointments").insert({
-      full_name: v.full_name,
-      phone: v.phone,
-      email: v.email || null,
-      service_id: v.service_id || null,
-      appointment_date: dt.toISOString(),
-      notes: v.notes || null,
-    });
-    setSubmitting(false);
-    if (error) {
-      toast.error("Randevu oluşturulamadı: " + error.message);
-      return;
+    try {
+      const { error } = await supabase.from("appointments").insert({
+        full_name: v.full_name,
+        phone: v.phone,
+        email: v.email || null,
+        service_id: v.service_id || null,
+        appointment_date: dt.toISOString(),
+        notes: v.notes || null,
+      });
+      if (error) throw error;
+
+      const serviceName = services.find((s) => s.id === v.service_id)?.title;
+      await createAppointmentCalendarEvent({
+        data: {
+          fullName: v.full_name,
+          phone: v.phone,
+          email: v.email || null,
+          appointmentDate: dt.toISOString(),
+          serviceName: serviceName || null,
+          notes: v.notes || null,
+        },
+      });
+
+      toast.success("Randevunuz alındı ve takvime eklendi.");
+      setDone(true);
+    } catch (err) {
+      console.error("Randevu işlemi hatası:", err);
+      toast.error("İşlem sırasında bir hata oluştu, lütfen tekrar deneyin.");
+    } finally {
+      setSubmitting(false);
     }
-    setDone(true);
   };
 
   return (
@@ -169,6 +188,7 @@ function RandevuPage() {
         </div>
       </main>
       <Footer />
+      <WhatsAppButton />
     </div>
   );
 }
