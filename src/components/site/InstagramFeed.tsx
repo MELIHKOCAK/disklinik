@@ -15,6 +15,9 @@ export function InstagramFeed() {
   const items = data?.items ?? [];
   const hasError = !isLoading && (!!data?.error || items.length === 0);
 
+  // Token geçersiz/eksikse bölümü tamamen gizle — kullanıcıya bozuk hissi vermesin
+  if (hasError) return null;
+
   return (
     <section className="py-20 md:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

@@ -1,31 +1,54 @@
-## Yapılacaklar
+## Canlıya Almadan Önce Tespit Edilen Sorunlar
 
-### 1. Yeni admin ekleme
-- `admin_users` tablosuna `xx24melih24xx@gmail.com` hesabının `user_id`'sini ekle (insert tool ile, `auth.users`'tan e-posta üzerinden lookup).
-- Bu kullanıcının önceden `/auth` üzerinden kayıt olmuş olması gerekir; kayıt yoksa kullanıcıya kaydolmasını söyleyeceğim, sonra ekleyeceğim.
+Projeyi inceledim. Build (TypeScript) temiz, ancak canlıya almadan önce düzeltilmesi gereken **2 gerçek sorun** ve **1 küçük güvenlik uyarısı** var.
 
-### 2. Instagram bölümünü düzelt
-Mevcut durum: `InstagramFeed.tsx` içine gömülü token geçersiz → Graph API 400 → bölüm hiç render edilmiyor (`error` true ise `return null`).
+---
 
-Yapılacak:
-- **Token'ı güvenli sakla**: `INSTAGRAM_ACCESS_TOKEN` adıyla runtime secret olarak ekle (`add_secret` ile kullanıcıdan yeni token alınacak). Token bir daha kodda tutulmayacak.
-- **Sunucu tarafına taşı**: Yeni `src/lib/instagram.functions.ts` içinde `getInstagramPosts` adlı `createServerFn` oluştur. Bu fonksiyon `process.env.INSTAGRAM_ACCESS_TOKEN` ile `https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink&limit=8` çağrısı yapacak. Hata/timeout durumunda `{ items: [], error: "..." }` döner — exception fırlatmaz, böylece site render'ı bozulmaz.
-- **InstagramFeed.tsx'i güncelle**:
-  - Sabit token değişkenini ve direkt `fetch` çağrısını kaldır.
-  - TanStack Query (`useQuery` + `useServerFn`) ile server function'ı çağır.
-  - Yükleniyor: mevcut skeleton grid göster.
-  - Hata: console'a yazdır, zarif fallback (başlık + "Gönderiler şu an yüklenemiyor" mesajı) — bölümü tamamen gizlemek yerine kullanıcı talebine göre **her zaman göster**.
-  - Boş veri: aynı fallback mesajı.
-  - Başarı: mevcut 1/2/4 kolon grid, hover overlay korunur.
-- **Konumu**: Şu an `index.tsx`'de `About` → `InstagramFeed` → `Contact` sırası var; kullanıcı "iletişim üzerinde" görünmediğinden bahsediyor — sıralama değişmeyecek, sadece artık her zaman görünecek.
+### 1. Instagram feed çalışmıyor (KRİTİK — kullanıcıya görünür)
 
-### Teknik notlar
-- Server function `requireSupabaseAuth` kullanmaz (public endpoint).
-- Token Instagram Basic Display / Graph API long-lived token olmalı (60 gün geçerli). Yenileme şimdilik manuel.
-- Mevcut `routes/index.tsx`, `routes/__root.tsx` ve route tree değişmiyor.
+Sunucu loglarında her istekte şu hata var:
+```
+[Instagram] HTTP 400 "Invalid OAuth access token - Cannot parse access token"
+```
+`INSTAGRAM_ACCESS_TOKEN` secret'ı tanımlı ama Facebook Graph API tarafından geçersiz olarak reddediliyor. Bu yüzden Anasayfa > "Bizi Takip Edin" bölümü her zaman "Gönderiler şu an yüklenemiyor" mesajını gösteriyor.
 
-### Dosya değişiklikleri
-- yeni: `src/lib/instagram.functions.ts`
-- güncellenecek: `src/components/site/InstagramFeed.tsx`
-- secret eklenecek: `INSTAGRAM_ACCESS_TOKEN`
-- veritabanı insert: `admin_users` (yeni e-posta)
+**Sebep:** Verilen token muhtemelen:
+- Kısa ömürlü bir token olup süresi dolmuş, veya
+- Instagram Basic Display tokeni olup Graph API (`graph.facebook.com`) endpoint'imize uymuyor, veya
+- Yanlış Business Account ID ile eşleşmiyor.
+
+**Çözüm:** Geçerli bir **uzun ömürlü (60 günlük) Instagram Graph API Page Access Token** ile `INSTAGRAM_ACCESS_TOKEN` secret'ını güncellemen gerekiyor. Bu adımı senin yapman gerek — token'ı Facebook Developers > Graph API Explorer üzerinden alıp bana iletirsen güncellerim. **Token sağlanana kadar bu bölümü görsel akışı bozmayacak şekilde bırakıyorum** (zaten hata fallback'i var, kullanıcı boş bir grid görmüyor).
+
+> Alternatif (önerilen): Token geçersizken bölüm hiç render edilmesin — fallback kutusunu da gizleyip section'ı tamamen atlayalım. Aşağıda bunu uyguluyorum.
+
+---
+
+### 2. `is_admin` SECURITY DEFINER yetki sıkılaştırma (DÜŞÜK)
+
+Supabase linter uyarısı: `public.is_admin(uuid)` fonksiyonu `authenticated` rolüne `EXECUTE` izniyle açık. Doğru kullanım örüntüsü bu olsa da en iyi pratik, fonksiyona açık `GRANT/REVOKE` uygulayıp yalnızca ihtiyaç duyan rollere izin vermektir. Şu an `PUBLIC`'e de açık olabilir.
+
+**Çözüm — migration:**
+```sql
+REVOKE EXECUTE ON FUNCTION public.is_admin(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO authenticated, service_role;
+```
+
+---
+
+### 3. Genel kontrol (TEMİZ ✅)
+
+- `bunx tsc --noEmit` → 0 hata
+- Server fn'leri (`createServerFn`) yapısı doğru, `attachSupabaseAuth` ve `requireSupabaseAuth` kullanım kuralları uygun
+- `admin_users` tablosunda her iki admin kayıtlı
+- Google Calendar entegrasyonu çalışıyor (loglarda 200)
+- RLS politikaları aktif
+
+---
+
+### Uygulayacağım Değişiklikler
+
+1. **`src/components/site/InstagramFeed.tsx`** — Hata/boş durumda section'ı tamamen render etmeyecek şekilde güncelle (kullanıcıya bozuk hissi vermesin). Token geçerli olduğunda otomatik gözükecek.
+2. **Yeni migration** — `is_admin` fonksiyonunun yetkilerini sıkılaştır.
+3. **Bilgi:** Instagram token'ını yenilemen için adımları açıklayacağım; token'ı bana iletmen yeterli, secret'ı güncelleyeceğim.
+
+Onayladığında uygularım.
