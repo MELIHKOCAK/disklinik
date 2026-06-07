@@ -14,12 +14,20 @@ export type IGResult = { items: IGItem[]; error: string | null };
 export const getInstagramPosts = createServerFn({ method: "GET" }).handler(
   async (): Promise<IGResult> => {
     const token = process.env.INSTAGRAM_ACCESS_TOKEN;
+    const businessId = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+
     if (!token) {
       console.error("[Instagram] INSTAGRAM_ACCESS_TOKEN tanımlı değil");
       return { items: [], error: "missing_token" };
     }
+
+    if (!businessId) {
+      console.error("[Instagram] INSTAGRAM_BUSINESS_ACCOUNT_ID tanımlı değil");
+      return { items: [], error: "missing_business_id" };
+    }
+
     try {
-      const url = `https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink&limit=8&access_token=${encodeURIComponent(token)}`;
+      const url = `https://graph.facebook.com/v25.0/${businessId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink&limit=8&access_token=${encodeURIComponent(token)}`;
       const res = await fetch(url);
       if (!res.ok) {
         const body = await res.text();
